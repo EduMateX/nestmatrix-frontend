@@ -1,24 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-
-// Redux
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import {
-    fetchBuildings,
-    deleteBuilding,
-    selectAllBuildings,
-    selectBuildingsStatus,
-    selectBuildingsPagination,
-    Building
-} from '@/store/buildings';
-
-// Shared Components
+import { fetchBuildings, deleteBuilding, selectAllBuildings, selectBuildingsStatus, selectBuildingsPagination, Building } from '@/store/buildings';
 import { Column, DataTable } from '@/components/shared/DataTable';
 import { Button } from '@/components/shared/Button';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { SearchInput } from '@/components/shared/SearchInput';
-
-// Utils & Icons
 import toast from '@/lib/toast';
 import { Pencil, PlusCircle, Trash2 } from 'lucide-react';
 
@@ -27,36 +14,39 @@ const BuildingListPage = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // Component state for modal
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
 
-    // Get state from URL params
     const currentPage = Number(searchParams.get('page')) || 0;
     const currentKeyword = searchParams.get('keyword') || '';
 
-    // Redux state
     const buildings = useAppSelector(selectAllBuildings);
     const status = useAppSelector(selectBuildingsStatus);
     const pagination = useAppSelector(selectBuildingsPagination);
 
-    // Effect to fetch data when page or keyword changes
     useEffect(() => {
         dispatch(fetchBuildings({ page: currentPage, size: 10, keyword: currentKeyword }));
     }, [dispatch, currentPage, currentKeyword]);
 
-    // Handler for page changes from DataTable component
-    const handlePageChange = (newPage: number) => {
-        setSearchParams({ page: String(newPage), keyword: currentKeyword });
-    };
+    const handlePageChange = useCallback((newPage: number) => {
+        setSearchParams(prev => {
+            prev.set('page', String(newPage));
+            return prev;
+        }, { replace: true });
+    }, [setSearchParams]);
 
-    // Handler for search keyword changes from SearchInput component
-    const handleSearch = (keyword: string) => {
-        // When searching, always reset to the first page
-        setSearchParams({ page: '0', keyword });
-    };
+    const handleSearch = useCallback((keyword: string) => {
+        setSearchParams(prev => {
+            prev.set('page', '0');
+            if (keyword) {
+                prev.set('keyword', keyword);
+            } else {
+                prev.delete('keyword');
+            }
+            return prev;
+        }, { replace: true });
+    }, [setSearchParams]);
 
-    // Modal handlers
     const handleOpenDeleteModal = (building: Building) => {
         setSelectedBuilding(building);
         setIsModalOpen(true);
@@ -66,23 +56,12 @@ const BuildingListPage = () => {
         if (selectedBuilding) {
             dispatch(deleteBuilding(selectedBuilding.id))
                 .unwrap()
-                .then(() => {
-                    toast.success(`Đã xóa tòa nhà "${selectedBuilding.name}"`);
-                    // No need to manually refetch, the delete action will set status to 'idle',
-                    // which can trigger a refetch if needed, but a better approach is to just
-                    // let the list update via the reducer. Let's adjust the reducer for that.
-                    // For simplicity, we'll just close the modal for now. The list will update
-                    // if we change the reducer to remove the item instead of refetching.
-                })
+                .then(() => toast.success(`Đã xóa tòa nhà "${selectedBuilding.name}"`))
                 .catch((error) => toast.error(error as string))
-                .finally(() => {
-                    setIsModalOpen(false);
-                    setSelectedBuilding(null);
-                });
+                .finally(() => setIsModalOpen(false));
         }
     };
 
-    // Columns definition for the DataTable
     const columns: Column<Building>[] = useMemo(() => [
         {
             header: 'Tên Tòa nhà',
@@ -120,9 +99,7 @@ const BuildingListPage = () => {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Quản lý Tòa nhà</h1>
-                    <p className="text-gray-500">
-                        Tổng số {pagination.totalElements} tòa nhà.
-                    </p>
+                    <p className="text-gray-500">Tổng số {pagination.totalElements} tòa nhà.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                     <div className="w-full sm:w-64">
@@ -133,10 +110,7 @@ const BuildingListPage = () => {
                         />
                     </div>
                     <Link to="/buildings/add" className="w-full sm:w-auto">
-                        <Button className="w-full">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Thêm mới
-                        </Button>
+                        <Button className="w-full"><PlusCircle className="mr-2 h-4 w-4" />Thêm mới</Button>
                     </Link>
                 </div>
             </div>
@@ -152,16 +126,14 @@ const BuildingListPage = () => {
                     onPageChange: handlePageChange,
                 }}
             />
-
             <ConfirmModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onConfirm={handleConfirmDelete}
                 title={`Xóa Tòa nhà: ${selectedBuilding?.name}`}
-                description="Bạn có chắc chắn muốn xóa tòa nhà này? Mọi dữ liệu liên quan (phòng, hợp đồng...) cũng có thể bị ảnh hưởng. Hành động này không thể hoàn tác."
+                description="Bạn có chắc chắn muốn xóa tòa nhà này? Mọi dữ liệu liên quan sẽ bị ảnh hưởng. Hành động này không thể hoàn tác."
             />
         </div>
     );
 };
-
 export default BuildingListPage;

@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { TenantsState } from './types';
-import { fetchTenants, deleteTenant, createTenant, updateTenant, fetchTenantById } from './actions';
+import { fetchTenants, createTenant, updateTenant, deleteTenant, fetchTenantById } from './actions';
 
 const initialState: TenantsState = {
     items: [],
@@ -18,11 +18,10 @@ const tenantsSlice = createSlice({
         resetStatus: (state) => {
             state.status = 'idle';
             state.error = null;
-        }
+        },
     },
     extraReducers: (builder) => {
         builder
-            // Fetch Tenants
             .addCase(fetchTenants.pending, (state) => {
                 state.status = 'loading';
             })
@@ -37,19 +36,22 @@ const tenantsSlice = createSlice({
                 state.status = 'failed';
                 state.error = action.payload as string;
             })
-
-            // Sau khi delete/create/update, set status về 'idle' để trigger fetch lại
-            .addCase(deleteTenant.fulfilled, (state) => {
+            .addCase(deleteTenant.fulfilled, (state, action) => {
+                state.items = state.items.filter((item) => item.id !== action.payload);
+                state.totalElements -= 1;
+                state.status = 'succeeded';
+            })
+            .addCase(createTenant.fulfilled, (state, action) => {
+                // Không thêm trực tiếp vì có thể đang ở trang khác, fetch lại sẽ tốt hơn
                 state.status = 'idle';
             })
-            .addCase(createTenant.fulfilled, (state) => {
-                state.status = 'idle';
+            .addCase(updateTenant.fulfilled, (state, action) => {
+                const index = state.items.findIndex((item) => item.id === action.payload.id);
+                if (index !== -1) {
+                    state.items[index] = action.payload;
+                }
+                state.status = 'succeeded';
             })
-            .addCase(updateTenant.fulfilled, (state) => {
-                state.status = 'idle';
-            })
-
-            // Fetch Tenant By ID
             .addCase(fetchTenantById.fulfilled, (state, action) => {
                 const index = state.items.findIndex(item => item.id === action.payload.id);
                 if (index !== -1) {

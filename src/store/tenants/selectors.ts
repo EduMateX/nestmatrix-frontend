@@ -1,5 +1,6 @@
 // src/store/tenants/selectors.ts
 import { RootState } from '@/store';
+import { createSelector } from '@reduxjs/toolkit';
 
 // Lấy toàn bộ danh sách khách thuê
 export const selectAllTenants = (state: RootState) => state.tenants.items;
@@ -13,8 +14,13 @@ export const selectTenantsError = (state: RootState) => state.tenants.error;
 // Lấy một khách thuê cụ thể bằng ID (dùng cho trang edit và breadcrumb)
 export const selectTenantById = (id: number) => (state: RootState) => state.tenants.items.find((tenant) => tenant.id === id);
 
-export const selectTenantsPagination = (state: RootState) => ({
-    currentPage: state.tenants.currentPage,
-    totalPages: state.tenants.totalPages,
-    totalElements: state.tenants.totalElements,
-});
+export const selectTenantsPagination = createSelector(
+    (state: RootState) => state.tenants.currentPage,
+    (state: RootState) => state.tenants.totalPages,
+    (state: RootState) => state.tenants.totalElements,
+    (currentPage, totalPages, totalElements) => ({
+        currentPage,
+        totalPages,
+        totalElements,
+    })
+);

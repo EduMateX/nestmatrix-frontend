@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchContracts, terminateContract, selectAllContracts, selectContractsStatus, Contract, ContractStatus, selectContractsPagination } from '@/store/contracts';
@@ -26,27 +26,29 @@ const ContractListPage = () => {
     useEffect(() => {
         // Luôn fetch khi page thay đổi hoặc status là 'idle'
         dispatch(fetchContracts({ page: currentPage, size: 10 }));
-    }, [status, currentPage, dispatch]);
+    }, [currentPage, dispatch]);
 
-    const handlePageChange = (newPage: number) => {
+    const handlePageChange = useCallback((newPage: number) => {
         setSearchParams({ page: String(newPage) });
-    };
-    const handleOpenTerminateModal = (contract: Contract) => {
+    }, [setSearchParams]);
+
+    const handleOpenTerminateModal = useCallback((contract: Contract) => {
         setSelectedContract(contract);
         setIsModalOpen(true);
-    };
-
-    const handleConfirmTerminate = () => {
+    }, []);
+    const handleConfirmTerminate = useCallback(() => {
         if (selectedContract) {
             dispatch(terminateContract(selectedContract.id))
                 .unwrap()
                 .then(() => {
                     toast.success(`Đã chấm dứt hợp đồng cho phòng "${selectedContract.roomNumber}"`);
-                    setIsModalOpen(false);
+                    // Sau khi chấm dứt, fetch lại trang hiện tại để cập nhật
+                    dispatch(fetchContracts({ page: currentPage, size: 10 }));
                 })
-                .catch((error) => toast.error(error));
+                .catch((error) => toast.error(error as string))
+                .finally(() => setIsModalOpen(false));
         }
-    };
+    }, [selectedContract, dispatch, currentPage]);
 
     const getStatusBadge = (status: ContractStatus) => {
         const styles = {
@@ -96,7 +98,7 @@ const ContractListPage = () => {
 
             <DataTable
                 columns={columns}
-                data={contracts} // `contracts` bây giờ chắc chắn là một mảng
+                data={contracts}
                 isLoading={status === 'loading'}
                 pagination={{
                     currentPage: pagination.currentPage,

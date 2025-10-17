@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { RoomsState } from './types';
-import { fetchRooms, deleteRoom, createRoom, updateRoom, fetchRoomById } from './actions';
+import { fetchRooms, createRoom, updateRoom, deleteRoom, fetchRoomById } from './actions';
 
 const initialState: RoomsState = {
     items: [],
@@ -17,19 +17,18 @@ const roomsSlice = createSlice({
     reducers: {
         clearRooms: (state) => {
             state.items = [];
-            state.status = 'idle';
+            state.currentPage = 0;
             state.totalPages = 0;
             state.totalElements = 0;
-            state.currentPage = 0;
+            state.status = 'idle';
         },
         resetStatus: (state) => {
             state.status = 'idle';
             state.error = null;
-        }
+        },
     },
     extraReducers: (builder) => {
         builder
-            // Fetch Rooms (với phân trang và filter)
             .addCase(fetchRooms.pending, (state) => {
                 state.status = 'loading';
             })
@@ -44,25 +43,28 @@ const roomsSlice = createSlice({
                 state.status = 'failed';
                 state.error = action.payload as string;
             })
-
-            // Sau khi delete/create/update, set status về 'idle' để trigger fetch lại
-            .addCase(deleteRoom.fulfilled, (state) => {
-                state.status = 'idle';
+            .addCase(deleteRoom.fulfilled, (state, action) => {
+                state.items = state.items.filter((item) => item.id !== action.payload);
+                state.totalElements -= 1;
+                state.status = 'succeeded';
             })
-            .addCase(createRoom.fulfilled, (state) => {
-                state.status = 'idle';
+            .addCase(createRoom.fulfilled, (state, action) => {
+                state.items.push(action.payload);
+                state.totalElements += 1;
+                state.status = 'succeeded';
             })
-            .addCase(updateRoom.fulfilled, (state) => {
-                state.status = 'idle';
+            .addCase(updateRoom.fulfilled, (state, action) => {
+                const index = state.items.findIndex((item) => item.id === action.payload.id);
+                if (index !== -1) {
+                    state.items[index] = action.payload;
+                }
+                state.status = 'succeeded';
             })
-
-            // Fetch Room By ID (để đảm bảo dữ liệu trong list luôn mới)
             .addCase(fetchRoomById.fulfilled, (state, action) => {
                 const index = state.items.findIndex(item => item.id === action.payload.id);
                 if (index !== -1) {
                     state.items[index] = action.payload;
                 } else {
-                    // Thêm vào nếu chưa có (trường hợp hiếm, nhưng đảm bảo an toàn)
                     state.items.push(action.payload);
                 }
             });

@@ -32,58 +32,65 @@ const RoomListPage = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-
+    // --- QUẢN LÝ STATE CHO FILTER VÀ SEARCH ---
+    // Đọc giá trị ban đầu từ URL, sau đó component sẽ tự quản lý
+    const [selectedBuildingId, setSelectedBuildingId] = useState(() => searchParams.get('buildingId') || '');
     const [keyword, setKeyword] = useState(() => searchParams.get('keyword') || '');
+    const [page, setPage] = useState(() => Number(searchParams.get('page')) || 0);
 
-    const currentPage = Number(searchParams.get('page')) || 0;
-    const selectedBuildingId = searchParams.get('buildingId');
-
+    // Redux State
     const rooms = useAppSelector(selectAllRooms);
     const roomsStatus = useAppSelector(selectRoomsStatus);
     const pagination = useAppSelector(selectRoomsPagination);
     const buildings = useAppSelector(selectAllBuildings);
     const buildingsStatus = useAppSelector(selectBuildingsStatus);
 
-    useEffect(() => {
-        if (buildingsStatus === 'idle') {
-            dispatch(fetchBuildings({ page: 0, size: 100 }));
-        }
-    }, [buildingsStatus, dispatch]);
+    // Modal State
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
+    // --- CHỈ CÓ MỘT useEffect ĐỂ FETCH DỮ LIỆU CHÍNH ---
     useEffect(() => {
-        const buildingId = selectedBuildingId ? Number(selectedBuildingId) : undefined;
+        // Luôn fetch danh sách tòa nhà
+        dispatch(fetchBuildings({ page: 0, size: 100 }));
 
-        if (buildingId) {
+        // Nếu có một tòa nhà được chọn, thì fetch danh sách phòng
+        const buildingId = Number(selectedBuildingId);
+        if (buildingId > 0) {
             dispatch(fetchRooms({
-                page: currentPage,
+                page,
                 size: 10,
                 buildingId: buildingId,
-                keyword: keyword,
+                keyword,
             }));
         } else {
+            // Nếu không có, đảm bảo danh sách phòng trống
             dispatch(clearRooms());
         }
-    }, [dispatch, currentPage, keyword, selectedBuildingId]);
 
-    const handlePageChange = (newPage: number) => {
-        setSearchParams(prev => {
-            const params = Object.fromEntries(prev);
-            return { ...params, page: String(newPage) };
-        });
-    };
+        // Cập nhật lại URLSearchParams để đồng bộ
+        const newSearchParams = new URLSearchParams();
+        if (selectedBuildingId) newSearchParams.set('buildingId', selectedBuildingId);
+        if (keyword) newSearchParams.set('keyword', keyword);
+        if (page > 0) newSearchParams.set('page', String(page));
+        setSearchParams(newSearchParams, { replace: true });
 
+    }, [dispatch, selectedBuildingId, keyword, page]); // Dependency array rất rõ ràng
+
+    // Handlers
     const handleBuildingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setSearchParams({ buildingId: e.target.value, page: '0', keyword });
+        setSelectedBuildingId(e.target.value);
+        setKeyword(''); // Reset keyword khi đổi tòa nhà
+        setPage(0); // Reset về trang đầu
     };
 
     const handleSearch = (newKeyword: string) => {
         setKeyword(newKeyword);
-        setSearchParams(prev => {
-            const params = Object.fromEntries(prev);
-            return { ...params, page: '0', keyword: newKeyword };
-        });
+        setPage(0); // Reset về trang đầu
+    };
+
+    const handlePageChange = (newPage: number) => {
+        setPage(newPage);
     };
 
     const handleOpenDeleteModal = (room: Room) => {
@@ -95,17 +102,11 @@ const RoomListPage = () => {
         if (selectedRoom) {
             dispatch(deleteRoom(selectedRoom.id))
                 .unwrap()
-                .then(() => {
-                    toast.success(`Đã xóa phòng "${selectedRoom.roomNumber}"`);
-                    if (selectedBuildingId) {
-                        dispatch(fetchRooms({ page: currentPage, size: 10, buildingId: Number(selectedBuildingId), keyword }));
-                    }
-                })
+                .then(() => toast.success(`Đã xóa phòng "${selectedRoom.roomNumber}"`))
                 .catch((error) => toast.error(error as string))
                 .finally(() => setIsModalOpen(false));
         }
     };
-
     const getStatusBadge = (status: RoomStatus) => {
         const styles: Record<RoomStatus, string> = {
             [RoomStatus.AVAILABLE]: "bg-green-100 text-green-800",
@@ -121,10 +122,7 @@ const RoomListPage = () => {
     };
 
     const buildingNameMap = useMemo(() => {
-        return buildings.reduce((acc, building) => {
-            acc[building.id] = building.name;
-            return acc;
-        }, {} as Record<number, string>);
+        return buildings.reduce((acc, b) => ({ ...acc, [b.id]: b.name }), {} as Record<number, string>);
     }, [buildings]);
 
     const columns: Column<Room>[] = useMemo(() => [
@@ -176,14 +174,11 @@ const RoomListPage = () => {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Quản lý Phòng</h1>
                     <p className="text-gray-500">
-                        {selectedBuildingId ? `Tổng số ${pagination.totalElements} phòng.` : "Vui lòng chọn một tòa nhà để xem danh sách."}
+                        {selectedBuildingId ? `Tổng số ${pagination.totalElements} phòng.` : "Vui lòng chọn một tòa nhà."}
                     </p>
                 </div>
                 <Link to={selectedBuildingId ? `/rooms/add?buildingId=${selectedBuildingId}` : '/rooms/add'}>
-                    <Button disabled={!selectedBuildingId}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Thêm phòng mới
-                    </Button>
+                    <Button disabled={!selectedBuildingId}><PlusCircle className="mr-2 h-4 w-4" /> Thêm phòng mới</Button>
                 </Link>
             </div>
 
@@ -194,7 +189,7 @@ const RoomListPage = () => {
                         <Select
                             options={buildingOptions}
                             placeholder="-- Chọn tòa nhà --"
-                            value={selectedBuildingId || ""}
+                            value={selectedBuildingId}
                             onChange={handleBuildingChange}
                             disabled={buildingsStatus === 'loading'}
                         />
@@ -202,10 +197,13 @@ const RoomListPage = () => {
                     <div className="w-full md:w-1/3">
                         <label className="font-medium mb-2 block">Tìm theo số phòng</label>
                         <SearchInput
+                            // Sử dụng key để reset component khi đổi tòa nhà
+                            key={selectedBuildingId}
                             initialValue={keyword}
                             onSearchChange={handleSearch}
                             placeholder="Nhập số phòng..."
                             debounceDelay={500}
+                            disabled={!selectedBuildingId}
                         />
                     </div>
                 </CardContent>
@@ -230,7 +228,7 @@ const RoomListPage = () => {
                 onClose={() => setIsModalOpen(false)}
                 onConfirm={handleConfirmDelete}
                 title={`Xóa Phòng: ${selectedRoom?.roomNumber}`}
-                description="Bạn có chắc chắn muốn xóa phòng này? Hành động này không thể hoàn tác."
+                description="Bạn có chắc chắn muốn xóa phòng này?"
             />
         </div>
     );

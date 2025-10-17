@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 // Redux
@@ -21,58 +21,48 @@ import { SearchInput } from '@/components/shared/SearchInput';
 // Utils & Icons
 import toast from '@/lib/toast';
 import { Pencil, PlusCircle, Trash2 } from 'lucide-react';
-import { useDebounce } from '@/hooks/useDebounce';
 
 const TenantListPage = () => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // Component state for modal
+    // State nội bộ cho modal
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
 
-    // State for search input, controlled by the component
-    const [keyword, setKeyword] = useState(() => searchParams.get('keyword') || '');
-
-    // Debounce the search term to avoid excessive API calls
-    const debouncedKeyword = useDebounce(keyword, 500);
-
-    // Get state from URL params
+    // Đọc state từ URL params
     const currentPage = Number(searchParams.get('page')) || 0;
+    const currentKeyword = searchParams.get('keyword') || '';
 
-    // Redux state
+    // Redux State
     const tenants = useAppSelector(selectAllTenants);
     const status = useAppSelector(selectTenantsStatus);
     const pagination = useAppSelector(selectTenantsPagination);
 
-    // Effect to fetch data when page or debounced keyword changes
+
     useEffect(() => {
-        // Update URL params
-        const newSearchParams: { [key: string]: string } = { page: String(currentPage) };
-        if (debouncedKeyword) {
-            newSearchParams.keyword = debouncedKeyword;
-        } else {
-            // Remove keyword from URL if it's empty
-            searchParams.delete('keyword');
-        }
-        setSearchParams(newSearchParams, { replace: true });
+        dispatch(fetchTenants({ page: currentPage, size: 10, keyword: currentKeyword }));
+    }, [dispatch, currentPage, currentKeyword]);
 
-        // Dispatch the fetch action
-        dispatch(fetchTenants({ page: currentPage, size: 10, keyword: debouncedKeyword }));
-    }, [dispatch, currentPage, debouncedKeyword, setSearchParams, searchParams]);
+    const handlePageChange = useCallback((newPage: number) => {
+        setSearchParams(prev => {
+            prev.set('page', String(newPage));
+            return prev;
+        }, { replace: true });
+    }, [setSearchParams]);
 
-    // Handler for page changes from DataTable component
-    const handlePageChange = (newPage: number) => {
-        setSearchParams({ page: String(newPage), keyword });
-    };
-
-    // Handler for search keyword changes (updates URL, which triggers useEffect)
-    const handleSearch = (newKeyword: string) => {
-        setKeyword(newKeyword);
-        // When searching, always go back to the first page
-        setSearchParams({ page: '0', keyword: newKeyword });
-    };
+    const handleSearch = useCallback((keyword: string) => {
+        setSearchParams(prev => {
+            prev.set('page', '0');
+            if (keyword) {
+                prev.set('keyword', keyword);
+            } else {
+                prev.delete('keyword');
+            }
+            return prev;
+        }, { replace: true });
+    }, [setSearchParams]);
 
     // Modal handlers
     const handleOpenDeleteModal = (tenant: Tenant) => {
@@ -86,8 +76,8 @@ const TenantListPage = () => {
                 .unwrap()
                 .then(() => {
                     toast.success(`Đã xóa khách thuê "${selectedTenant.fullName}"`);
-                    // After deleting, refetch the current page to update the list
-                    dispatch(fetchTenants({ page: currentPage, size: 10, keyword: debouncedKeyword }));
+                    // Dispatch lại action fetch để làm mới dữ liệu
+                    dispatch(fetchTenants({ page: currentPage, size: 10, keyword: currentKeyword }));
                 })
                 .catch((error) => toast.error(error as string))
                 .finally(() => setIsModalOpen(false));
@@ -96,11 +86,7 @@ const TenantListPage = () => {
 
     // Columns definition for the DataTable
     const columns: Column<Tenant>[] = useMemo(() => [
-        {
-            header: 'Họ và tên',
-            accessor: 'fullName',
-            render: (t) => <span className="font-medium text-gray-800">{t.fullName}</span>
-        },
+        { header: 'Họ và tên', accessor: 'fullName', render: (t) => <span className="font-medium text-gray-800">{t.fullName}</span> },
         { header: 'Số điện thoại', accessor: 'phoneNumber' },
         { header: 'Email', accessor: 'email' },
         { header: 'Số CCCD', accessor: 'citizenId' },
@@ -125,14 +111,12 @@ const TenantListPage = () => {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Quản lý Khách thuê</h1>
-                    <p className="text-gray-500">
-                        Tổng số {pagination.totalElements} khách thuê.
-                    </p>
+                    <p className="text-gray-500">Tổng số {pagination.totalElements} khách thuê.</p>
                 </div>
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                     <div className="w-full sm:w-64">
                         <SearchInput
-                            initialValue={keyword}
+                            initialValue={currentKeyword}
                             onSearchChange={handleSearch}
                             placeholder="Tìm theo tên hoặc SĐT..."
                         />

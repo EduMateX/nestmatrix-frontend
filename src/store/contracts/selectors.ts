@@ -1,4 +1,4 @@
-// src/store/contracts/selectors.ts
+import { createSelector } from '@reduxjs/toolkit';
 import { RootState } from '@/store';
 
 // Lấy toàn bộ danh sách hợp đồng
@@ -14,8 +14,16 @@ export const selectContractsError = (state: RootState) => state.contracts.error;
 export const selectContractById = (id: number) => (state: RootState) =>
     state.contracts.items.find((contract) => contract.id === id);
 
-export const selectContractsPagination = (state: RootState) => ({
-    currentPage: state.contracts.currentPage,
-    totalPages: state.contracts.totalPages,
-    totalElements: state.contracts.totalElements,
-});
+const selectContractsCurrentPage = (state: RootState) => state.contracts.currentPage;
+const selectContractsTotalPages = (state: RootState) => state.contracts.totalPages;
+const selectContractsTotalElements = (state: RootState) => state.contracts.totalElements;
+
+// Memoized selector
+export const selectContractsPagination = createSelector(
+    [selectContractsCurrentPage, selectContractsTotalPages, selectContractsTotalElements],
+    (currentPage, totalPages, totalElements) => ({
+        currentPage,
+        totalPages,
+        totalElements,
+    })
+);
