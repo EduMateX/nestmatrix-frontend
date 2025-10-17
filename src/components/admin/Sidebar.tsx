@@ -9,7 +9,8 @@ import {
     FileText,
     ClipboardList,
     Wrench,
-    Bell
+    Bell,
+    Settings
 } from "lucide-react";
 import logo from '@/assets/logo.svg'; // Thay bằng logo của bạn
 
@@ -21,7 +22,9 @@ const menuItems = [
     { name: 'Quản lý Khách thuê', href: '/tenants', icon: Users },
     { name: 'Quản lý Hợp đồng', href: '/contracts', icon: FileText },
     { name: 'Điện & Nước', href: '/meter-readings', icon: ClipboardList },
+    { name: 'Quản lý Hóa đơn', href: '/invoices', icon: Bell },
     { name: 'Quản lý Sự cố', href: '/incidents', icon: Wrench },
+    { name: 'Cài đặt', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {

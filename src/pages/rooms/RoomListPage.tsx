@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 // Redux
@@ -32,11 +32,14 @@ const RoomListPage = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // --- QUẢN LÝ STATE CHO FILTER VÀ SEARCH ---
-    // Đọc giá trị ban đầu từ URL, sau đó component sẽ tự quản lý
-    const [selectedBuildingId, setSelectedBuildingId] = useState(() => searchParams.get('buildingId') || '');
-    const [keyword, setKeyword] = useState(() => searchParams.get('keyword') || '');
-    const [page, setPage] = useState(() => Number(searchParams.get('page')) || 0);
+    // State nội bộ cho modal
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+
+    // Đọc state từ URL params
+    const currentPage = Number(searchParams.get('page')) || 0;
+    const buildingId = searchParams.get('buildingId') || '';
+    const keyword = searchParams.get('keyword') || '';
 
     // Redux State
     const rooms = useAppSelector(selectAllRooms);
@@ -45,53 +48,53 @@ const RoomListPage = () => {
     const buildings = useAppSelector(selectAllBuildings);
     const buildingsStatus = useAppSelector(selectBuildingsStatus);
 
-    // Modal State
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-
-    // --- CHỈ CÓ MỘT useEffect ĐỂ FETCH DỮ LIỆU CHÍNH ---
+    // Fetch buildings cho dropdown
     useEffect(() => {
-        // Luôn fetch danh sách tòa nhà
-        dispatch(fetchBuildings({ page: 0, size: 100 }));
+        if (buildingsStatus === 'idle') {
+            dispatch(fetchBuildings({ page: 0, size: 100 }));
+        }
+    }, [buildingsStatus, dispatch]);
 
-        // Nếu có một tòa nhà được chọn, thì fetch danh sách phòng
-        const buildingId = Number(selectedBuildingId);
-        if (buildingId > 0) {
+    // Fetch rooms khi các tham số URL thay đổi
+    useEffect(() => {
+        if (buildingId) {
             dispatch(fetchRooms({
-                page,
+                page: currentPage,
                 size: 10,
-                buildingId: buildingId,
-                keyword,
+                buildingId: Number(buildingId),
+                keyword: keyword,
+                // Không còn filter và sort
             }));
         } else {
-            // Nếu không có, đảm bảo danh sách phòng trống
             dispatch(clearRooms());
         }
+    }, [dispatch, currentPage, keyword, buildingId]);
 
-        // Cập nhật lại URLSearchParams để đồng bộ
-        const newSearchParams = new URLSearchParams();
-        if (selectedBuildingId) newSearchParams.set('buildingId', selectedBuildingId);
-        if (keyword) newSearchParams.set('keyword', keyword);
-        if (page > 0) newSearchParams.set('page', String(page));
-        setSearchParams(newSearchParams, { replace: true });
+    // --- Handlers ---
+    const handlePageChange = useCallback((newPage: number) => {
+        setSearchParams(prev => {
+            prev.set('page', String(newPage));
+            return prev;
+        }, { replace: true });
+    }, [setSearchParams]);
 
-    }, [dispatch, selectedBuildingId, keyword, page]); // Dependency array rất rõ ràng
+    const handleBuildingChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newBuildingId = e.target.value;
+        // Khi đổi tòa nhà, reset page và keyword
+        setSearchParams({ buildingId: newBuildingId, page: '0', keyword: '' });
+    }, [setSearchParams]);
 
-    // Handlers
-    const handleBuildingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setSelectedBuildingId(e.target.value);
-        setKeyword(''); // Reset keyword khi đổi tòa nhà
-        setPage(0); // Reset về trang đầu
-    };
-
-    const handleSearch = (newKeyword: string) => {
-        setKeyword(newKeyword);
-        setPage(0); // Reset về trang đầu
-    };
-
-    const handlePageChange = (newPage: number) => {
-        setPage(newPage);
-    };
+    const handleSearch = useCallback((newKeyword: string) => {
+        setSearchParams(prev => {
+            prev.set('page', '0'); // Reset page khi tìm kiếm
+            if (newKeyword) {
+                prev.set('keyword', newKeyword);
+            } else {
+                prev.delete('keyword');
+            }
+            return prev;
+        }, { replace: true });
+    }, [setSearchParams]);
 
     const handleOpenDeleteModal = (room: Room) => {
         setSelectedRoom(room);
@@ -100,13 +103,13 @@ const RoomListPage = () => {
 
     const handleConfirmDelete = () => {
         if (selectedRoom) {
-            dispatch(deleteRoom(selectedRoom.id))
-                .unwrap()
+            dispatch(deleteRoom(selectedRoom.id)).unwrap()
                 .then(() => toast.success(`Đã xóa phòng "${selectedRoom.roomNumber}"`))
                 .catch((error) => toast.error(error as string))
                 .finally(() => setIsModalOpen(false));
         }
     };
+
     const getStatusBadge = (status: RoomStatus) => {
         const styles: Record<RoomStatus, string> = {
             [RoomStatus.AVAILABLE]: "bg-green-100 text-green-800",
@@ -117,68 +120,39 @@ const RoomListPage = () => {
             [RoomStatus.AVAILABLE]: "Trống",
             [RoomStatus.RENTED]: "Đã thuê",
             [RoomStatus.MAINTENANCE]: "Bảo trì",
-        }
+        };
         return <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${styles[status]}`}>{text[status]}</span>;
     };
 
-    const buildingNameMap = useMemo(() => {
-        return buildings.reduce((acc, b) => ({ ...acc, [b.id]: b.name }), {} as Record<number, string>);
-    }, [buildings]);
+    const buildingNameMap = useMemo(() => buildings.reduce((acc, b) => ({ ...acc, [b.id]: b.name }), {} as Record<number, string>), [buildings]);
 
     const columns: Column<Room>[] = useMemo(() => [
+        { header: 'Số phòng', accessor: 'roomNumber', render: (r) => <span className="font-medium">{r.roomNumber}</span> },
+        { header: 'Tòa nhà', accessor: 'buildingId', render: (r) => <span>{buildingNameMap[r.buildingId] || 'N/A'}</span> },
+        { header: 'Giá thuê (VND)', accessor: 'price', render: (r) => r.price.toLocaleString('vi-VN') },
+        { header: 'Diện tích (m²)', accessor: 'area' },
+        { header: 'Trạng thái', accessor: 'status', render: (r) => getStatusBadge(r.status) },
         {
-            header: 'Số phòng',
-            accessor: 'roomNumber',
-            render: (r) => <span className="font-medium text-gray-800">{r.roomNumber}</span>
-        },
-        {
-            header: 'Tòa nhà',
-            accessor: 'buildingId',
-            render: (r) => <span>{buildingNameMap[r.buildingId] || 'N/A'}</span>
-        },
-        {
-            header: 'Giá thuê (VND)',
-            accessor: 'price',
-            render: (r) => <span>{r.price.toLocaleString('vi-VN')}</span>
-        },
-        {
-            header: 'Diện tích (m²)',
-            accessor: 'area'
-        },
-        {
-            header: 'Trạng thái',
-            accessor: 'status',
-            render: (r) => getStatusBadge(r.status)
-        },
-        {
-            header: 'Hành động',
-            accessor: 'id',
-            render: (room) => (
+            header: 'Hành động', accessor: 'actions', render: (room) => (
                 <div className="flex gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => navigate(`/rooms/edit/${room.id}`)} title="Chỉnh sửa">
-                        <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="danger" size="sm" onClick={() => handleOpenDeleteModal(room)} title="Xóa">
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => navigate(`/rooms/edit/${room.id}`)}><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="danger" size="sm" onClick={() => handleOpenDeleteModal(room)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
-            ),
+            )
         },
-    ], [navigate, buildingNameMap]);
+    ], [navigate, buildingNameMap, handleOpenDeleteModal]);
 
     const buildingOptions: SelectOption[] = useMemo(() => buildings.map(b => ({ value: b.id, label: b.name })), [buildings]);
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Quản lý Phòng</h1>
-                    <p className="text-gray-500">
-                        {selectedBuildingId ? `Tổng số ${pagination.totalElements} phòng.` : "Vui lòng chọn một tòa nhà."}
-                    </p>
+                    <h1 className="text-2xl font-bold">Quản lý Phòng</h1>
+                    <p className="text-gray-500">{buildingId ? `Tổng số ${pagination.totalElements} phòng.` : "Vui lòng chọn một tòa nhà."}</p>
                 </div>
-                <Link to={selectedBuildingId ? `/rooms/add?buildingId=${selectedBuildingId}` : '/rooms/add'}>
-                    <Button disabled={!selectedBuildingId}><PlusCircle className="mr-2 h-4 w-4" /> Thêm phòng mới</Button>
+                <Link to={buildingId ? `/rooms/add?buildingId=${buildingId}` : '/rooms/add'}>
+                    <Button disabled={!buildingId}><PlusCircle className="mr-2 h-4 w-4" /> Thêm phòng</Button>
                 </Link>
             </div>
 
@@ -189,7 +163,7 @@ const RoomListPage = () => {
                         <Select
                             options={buildingOptions}
                             placeholder="-- Chọn tòa nhà --"
-                            value={selectedBuildingId}
+                            value={buildingId || ""}
                             onChange={handleBuildingChange}
                             disabled={buildingsStatus === 'loading'}
                         />
@@ -197,19 +171,16 @@ const RoomListPage = () => {
                     <div className="w-full md:w-1/3">
                         <label className="font-medium mb-2 block">Tìm theo số phòng</label>
                         <SearchInput
-                            // Sử dụng key để reset component khi đổi tòa nhà
-                            key={selectedBuildingId}
                             initialValue={keyword}
                             onSearchChange={handleSearch}
                             placeholder="Nhập số phòng..."
-                            debounceDelay={500}
-                            disabled={!selectedBuildingId}
+                            disabled={!buildingId}
                         />
                     </div>
                 </CardContent>
             </Card>
 
-            {selectedBuildingId && (
+            {buildingId && (
                 <DataTable
                     columns={columns}
                     data={rooms}
@@ -220,6 +191,7 @@ const RoomListPage = () => {
                         totalElements: pagination.totalElements,
                         onPageChange: handlePageChange,
                     }}
+                // Không còn props sort và onSort
                 />
             )}
 

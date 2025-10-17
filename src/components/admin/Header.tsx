@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ChevronRight, Home } from "lucide-react";
 import { UserNav } from "@/components/admin/UserNav";
 import { useBreadcrumb } from "@/context/BreadcrumbContext";
+import NotificationBell from "@/components/NotificationBell";
 
 const breadcrumbNameMap: { [key: string]: string } = {
     'dashboard': 'Dashboard',
@@ -13,6 +14,9 @@ const breadcrumbNameMap: { [key: string]: string } = {
     'contracts': 'Quản lý Hợp đồng',
     'incidents': 'Quản lý Sự cố',
     'meter-readings': 'Ghi chỉ số Điện Nước',
+    'invoices': 'Quản lý Hóa đơn',
+    'profile': 'Hồ sơ cá nhân',
+    'settings': 'Cài đặt hệ thống',
 };
 
 
@@ -58,6 +62,7 @@ export function Header() {
 
 
             <div className="flex items-center gap-4">
+                <NotificationBell />
                 <UserNav />
             </div>
         </header>

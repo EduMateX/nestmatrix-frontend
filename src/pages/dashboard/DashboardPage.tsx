@@ -6,10 +6,10 @@ import {
     selectDashboardData,
     selectDashboardStatus
 } from '@/store/dashboard';
-import { StatCard } from '@/components/dashboard/StatCard';
+import { Building, DoorOpen, Users, FileWarning, AlertTriangle } from 'lucide-react';
 import { QuickList } from '@/components/dashboard/QuickList';
 import { RevenueChart } from '@/components/dashboard/RevenueChart';
-import { Building, DoorOpen, Users, FileWarning } from 'lucide-react';
+import { StatCard } from '@/components/dashboard/StatCard';
 
 const DashboardPage = () => {
     const dispatch = useAppDispatch();
@@ -18,7 +18,6 @@ const DashboardPage = () => {
     const isLoading = status === 'loading' || status === 'idle';
 
     useEffect(() => {
-        // Chỉ fetch data khi vào trang lần đầu
         if (status === 'idle') {
             dispatch(fetchDashboardData());
         }
@@ -36,7 +35,7 @@ const DashboardPage = () => {
                 <p className="text-muted-foreground">Tổng quan về tình hình kinh doanh của bạn.</p>
             </div>
 
-            {/* Các thẻ chỉ số thống kê */}
+            {/* Các thẻ chỉ số thống kê (không thay đổi) */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatCard title="Tổng Tòa nhà" value={stats?.totalBuildings ?? 0} icon={Building} isLoading={isLoading} />
                 <StatCard title="Phòng (Đã thuê / Tổng)" value={roomRatio} icon={DoorOpen} isLoading={isLoading} />
@@ -45,6 +44,7 @@ const DashboardPage = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
                 {/* Biểu đồ Doanh thu (chiếm 2/3 không gian) */}
                 <div className="lg:col-span-2">
                     <RevenueChart data={data?.revenueByMonth} isLoading={isLoading} />
@@ -57,6 +57,7 @@ const DashboardPage = () => {
                         description="Các sự cố đang chờ hoặc đang được giải quyết."
                         items={data?.pendingIncidents}
                         linkTo="/incidents"
+                        icon={AlertTriangle} // Thêm icon
                         isLoading={isLoading}
                     />
                     <QuickList
@@ -64,6 +65,7 @@ const DashboardPage = () => {
                         description="Các hợp đồng sẽ hết hạn trong 30 ngày tới."
                         items={data?.expiringContracts}
                         linkTo="/contracts"
+                        icon={FileWarning} // Thêm icon
                         isLoading={isLoading}
                     />
                 </div>

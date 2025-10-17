@@ -9,13 +9,15 @@ interface SearchInputProps {
     onSearchChange: (keyword: string) => void;
     placeholder?: string;
     debounceDelay?: number;
+    disabled?: boolean;
 }
 
 export const SearchInput = ({
     initialValue = '',
     onSearchChange,
     placeholder = 'Tìm kiếm...',
-    debounceDelay = 500
+    debounceDelay = 500,
+    disabled = false,
 }: SearchInputProps) => {
     const [keyword, setKeyword] = useState(initialValue);
     const debouncedKeyword = useDebounce(keyword, debounceDelay);
@@ -34,6 +36,7 @@ export const SearchInput = ({
                 className="pl-9" // Thêm padding bên trái để không che icon
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
+                disabled={disabled}
             />
         </div>
     );

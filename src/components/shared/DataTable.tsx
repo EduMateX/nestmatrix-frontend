@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface Column<T> {
     header: string;
-    accessor: keyof T;
+    accessor: keyof T | 'actions';
     render?: (item: T) => ReactNode;
 }
 
@@ -21,15 +21,21 @@ interface DataTableProps<T> {
     }
 }
 
-export function DataTable<T extends { id: number | string }>({ data, columns, isLoading = false, pagination }: DataTableProps<T>) {
+export function DataTable<T extends { id: number | string }>({
+    data = [],
+    columns,
+    isLoading = false,
+    pagination
+}: DataTableProps<T>) {
     return (
         <div className="rounded-lg border shadow-sm bg-white">
             <div className="relative w-full overflow-auto">
                 <table className="w-full caption-bottom text-sm">
                     <thead className="[&_tr]:border-b bg-gray-50">
                         <tr className="border-b transition-colors hover:bg-muted/50">
-                            {columns.map((col) => (
-                                <th key={String(col.accessor)} className="h-12 px-4 text-left align-middle font-medium text-gray-500">
+                            {columns.map((col, index) => (
+                                // Tạo key duy nhất cho header bằng cách kết hợp accessor và index
+                                <th key={`${String(col.accessor)}-${index}`} className="h-12 px-4 text-left align-middle font-medium text-gray-500">
                                     {col.header}
                                 </th>
                             ))}
@@ -39,10 +45,10 @@ export function DataTable<T extends { id: number | string }>({ data, columns, is
                         {isLoading ? (
                             <tr>
                                 <td colSpan={columns.length} className="p-24 text-center">
-                                    <Spinner />
+                                    <Spinner size="md" />
                                 </td>
                             </tr>
-                        ) : data.length === 0 ? (
+                        ) : !data || data.length === 0 ? (
                             <tr>
                                 <td colSpan={columns.length} className="p-24 text-center text-gray-500">
                                     Không có dữ liệu.
@@ -52,8 +58,12 @@ export function DataTable<T extends { id: number | string }>({ data, columns, is
                             data.map((item) => (
                                 <tr key={item.id} className="transition-colors hover:bg-gray-50/50">
                                     {columns.map((col) => (
-                                        <td key={String(col.accessor)} className="p-4 align-middle">
-                                            {col.render ? col.render(item) : String(item[col.accessor] ?? '')}
+                                        <td key={`${item.id}-${String(col.accessor)}`} className="p-4 align-middle">
+                                            {col.render
+                                                ? col.render(item)
+                                                : col.accessor !== 'actions'
+                                                    ? String(item[col.accessor as keyof T] ?? '')
+                                                    : null}
                                         </td>
                                     ))}
                                 </tr>
@@ -65,7 +75,7 @@ export function DataTable<T extends { id: number | string }>({ data, columns, is
 
             {pagination && pagination.totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t">
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-gray-500">
                         Tổng số {pagination.totalElements} bản ghi.
                     </div>
                     <div className="flex items-center space-x-2">

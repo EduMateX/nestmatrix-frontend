@@ -10,7 +10,7 @@ interface RevenueChartProps {
 
 export const RevenueChart = ({ data, isLoading }: RevenueChartProps) => {
     return (
-        <Card className="col-span-4">
+        <Card>
             <CardHeader>
                 <CardTitle>Doanh thu</CardTitle>
                 <CardDescription>Doanh thu từ các hóa đơn đã thanh toán trong 6 tháng gần nhất.</CardDescription>
