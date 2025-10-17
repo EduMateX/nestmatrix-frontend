@@ -1,4 +1,4 @@
 export * from './actions';
-export { default as roomsReducer } from './reducers';
+export { default as roomsReducer, clearRooms, resetStatus } from './reducers';
 export * from './selectors';
 export * from './types';

@@ -22,7 +22,6 @@ const menuItems = [
     { name: 'Quản lý Hợp đồng', href: '/contracts', icon: FileText },
     { name: 'Điện & Nước', href: '/meter-readings', icon: ClipboardList },
     { name: 'Quản lý Sự cố', href: '/incidents', icon: Wrench },
-    { name: 'Thông báo', href: '/notifications', icon: Bell },
 ];
 
 export function Sidebar() {

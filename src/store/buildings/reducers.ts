@@ -6,6 +6,9 @@ const initialState: BuildingsState = {
     items: [],
     status: 'idle',
     error: null,
+    currentPage: 0,
+    totalPages: 0,
+    totalElements: 0,
 };
 
 const buildingsSlice = createSlice({
@@ -25,7 +28,10 @@ const buildingsSlice = createSlice({
             })
             .addCase(fetchBuildings.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.items = action.payload;
+                state.items = action.payload.content;
+                state.currentPage = action.payload.number;
+                state.totalPages = action.payload.totalPages;
+                state.totalElements = action.payload.totalElements;
             })
             .addCase(fetchBuildings.rejected, (state, action) => {
                 state.status = 'failed';
@@ -33,6 +39,7 @@ const buildingsSlice = createSlice({
             })
             .addCase(deleteBuilding.fulfilled, (state, action) => {
                 state.items = state.items.filter((item) => item.id !== action.payload);
+                state.status = 'idle'; // Set lại 'idle' để trigger fetch lại
             })
             // Create Building
             .addCase(createBuilding.pending, (state) => { state.status = 'loading'; })

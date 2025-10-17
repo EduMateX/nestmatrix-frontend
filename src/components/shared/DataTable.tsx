@@ -1,34 +1,41 @@
 import { ReactNode } from 'react';
 import { Spinner } from './Spinner';
+import { Button } from './Button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-// Định nghĩa kiểu cho một cột
 export interface Column<T> {
     header: string;
-    accessor: keyof T; // Key của object data
-    render?: (item: T) => ReactNode; // Hàm render tùy chỉnh
+    accessor: keyof T;
+    render?: (item: T) => ReactNode;
 }
 
 interface DataTableProps<T> {
     data: T[];
     columns: Column<T>[];
     isLoading?: boolean;
+    pagination?: {
+        currentPage: number;
+        totalPages: number;
+        totalElements: number;
+        onPageChange: (page: number) => void;
+    }
 }
 
-export function DataTable<T extends { id: number | string }>({ data, columns, isLoading = false }: DataTableProps<T>) {
+export function DataTable<T extends { id: number | string }>({ data, columns, isLoading = false, pagination }: DataTableProps<T>) {
     return (
-        <div className="rounded-lg border shadow-sm">
+        <div className="rounded-lg border shadow-sm bg-white">
             <div className="relative w-full overflow-auto">
                 <table className="w-full caption-bottom text-sm">
                     <thead className="[&_tr]:border-b bg-gray-50">
                         <tr className="border-b transition-colors hover:bg-muted/50">
                             {columns.map((col) => (
-                                <th key={String(col.accessor)} className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                                <th key={String(col.accessor)} className="h-12 px-4 text-left align-middle font-medium text-gray-500">
                                     {col.header}
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="[&_tr:last-child]:border-0">
+                    <tbody className="[&_tr:last-child]:border-0 divide-y divide-gray-200">
                         {isLoading ? (
                             <tr>
                                 <td colSpan={columns.length} className="p-24 text-center">
@@ -43,10 +50,10 @@ export function DataTable<T extends { id: number | string }>({ data, columns, is
                             </tr>
                         ) : (
                             data.map((item) => (
-                                <tr key={item.id} className="border-b transition-colors hover:bg-gray-50/50">
+                                <tr key={item.id} className="transition-colors hover:bg-gray-50/50">
                                     {columns.map((col) => (
                                         <td key={String(col.accessor)} className="p-4 align-middle">
-                                            {col.render ? col.render(item) : String(item[col.accessor])}
+                                            {col.render ? col.render(item) : String(item[col.accessor] ?? '')}
                                         </td>
                                     ))}
                                 </tr>
@@ -55,6 +62,37 @@ export function DataTable<T extends { id: number | string }>({ data, columns, is
                     </tbody>
                 </table>
             </div>
+
+            {pagination && pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between p-4 border-t">
+                    <div className="text-sm text-muted-foreground">
+                        Tổng số {pagination.totalElements} bản ghi.
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
+                            disabled={pagination.currentPage === 0}
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span>Trước</span>
+                        </Button>
+                        <span className="text-sm font-medium">
+                            Trang {pagination.currentPage + 1} / {pagination.totalPages}
+                        </span>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
+                            disabled={pagination.currentPage >= pagination.totalPages - 1}
+                        >
+                            <span>Sau</span>
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { ChevronRight, Home } from "lucide-react";
-import { UserNav } from "@/components/UserNav";
+import { UserNav } from "@/components/admin/UserNav";
 import { useBreadcrumb } from "@/context/BreadcrumbContext";
 
 const breadcrumbNameMap: { [key: string]: string } = {
@@ -12,7 +12,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
     'tenants': 'Quản lý Khách thuê',
     'contracts': 'Quản lý Hợp đồng',
     'incidents': 'Quản lý Sự cố',
-    // Key ở đây là các "slug" trong URL, không cần dấu "/"
+    'meter-readings': 'Ghi chỉ số Điện Nước',
 };
 
 

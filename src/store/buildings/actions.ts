@@ -1,15 +1,24 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import api from '@/api/axiosClient';
-import { ApiResponse } from '@/types/api';
+import { ApiResponse, Page } from '@/types/api';
 import { Building, CreateBuildingPayload, UpdateBuildingPayload } from './types';
 import { AxiosError } from 'axios';
 
 // Get all buildings
-export const fetchBuildings = createAsyncThunk<Building[]>(
+export const fetchBuildings = createAsyncThunk<Page<Building>, FetchBuildingsPayload>(
     'buildings/fetchBuildings',
-    async (_, { rejectWithValue }) => {
+    async ({ page, size, keyword }, { rejectWithValue }) => {
         try {
-            const response = await api.get<ApiResponse<Building[]>>('/buildings');
+            const params = new URLSearchParams({
+                page: String(page),
+                size: String(size),
+                sort: 'name,asc', // Mặc định sắp xếp theo tên
+            });
+            if (keyword) {
+                params.append('keyword', keyword);
+            }
+
+            const response = await api.get<ApiResponse<Page<Building>>>(`/buildings?${params.toString()}`);
             return response.data.data;
         } catch (err) {
             const error = err as AxiosError<{ message: string }>;

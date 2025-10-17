@@ -13,6 +13,15 @@ import ProfilePage from "@/pages/profile/ProfilePage";
 import BuildingListPage from "@/pages/buildings/BuildingListPage";
 import BuildingFormPage from "@/pages/buildings/BuildingFormPage";
 import RoomListPage from "@/pages/rooms/RoomListPage";
+import RoomFormPage from "@/pages/rooms/RoomFormPage";
+import TenantFormPage from "@/pages/tenants/TenantFormPage";
+import TenantListPage from "@/pages/tenants/TenantListPage";
+import ContractFormPage from "@/pages/contracts/ContractFormPage";
+import ContractListPage from "@/pages/contracts/ContractListPage";
+import ContractDetailPage from "@/pages/contracts/ContractDetailPage";
+import MeterReadingHistoryPage from "@/pages/meter-readings/MeterReadingHistoryPage";
+import MeterReadingPage from "@/pages/meter-readings/MeterReadingPage";
+import IncidentListPage from "@/pages/incidents/IncidentListPage";
 
 function App() {
   return (
@@ -34,10 +43,18 @@ function App() {
             <Route path="/buildings/add" element={<BuildingFormPage />} />
             <Route path="/buildings/edit/:id" element={<BuildingFormPage />} />
             <Route path="/rooms" element={<RoomListPage />} />
-            {/*
-              <Route path="/rooms/add" element={<RoomFormPage />} />
-              <Route path="/rooms/edit/:id" element={<RoomFormPage />} /> 
-            */}
+            <Route path="/rooms/add" element={<RoomFormPage />} />
+            <Route path="/rooms/edit/:id" element={<RoomFormPage />} />
+            <Route path="/tenants" element={<TenantListPage />} />
+            <Route path="/tenants/add" element={<TenantFormPage />} />
+            <Route path="/tenants/edit/:id" element={<TenantFormPage />} />
+            <Route path="/contracts" element={<ContractListPage />} />
+            <Route path="/contracts/add" element={<ContractFormPage />} />
+            <Route path="/contracts/:id" element={<ContractDetailPage />} />
+            <Route path="/meter-readings" element={<MeterReadingPage />} />
+            <Route path="/meter-readings/history/:roomId" element={<MeterReadingHistoryPage />} />
+            <Route path="/incidents" element={<IncidentListPage />} />
+
           </Route>
         </Route>
 

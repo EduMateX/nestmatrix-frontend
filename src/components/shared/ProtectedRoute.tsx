@@ -1,41 +1,50 @@
-// src/components/shared/ProtectedRoute.tsx
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectAuthStatus, fetchUserProfile } from '@/store/auth';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/shared/Spinner';
 
 const ProtectedRoute = () => {
     const dispatch = useAppDispatch();
+    const location = useLocation();
+
     const isAuthenticated = useAppSelector(selectIsAuthenticated);
     const authStatus = useAppSelector(selectAuthStatus);
 
-    // useEffect này sẽ chạy một lần khi component được mount
-    useEffect(() => {
-        // Nếu redux chưa xác thực và đang ở trạng thái 'idle' (chưa làm gì)
-        if (!isAuthenticated && authStatus === 'idle') {
-            // Dispatch action để thử lấy thông tin user.
-            // Nếu có cookie hợp lệ, backend sẽ trả về thông tin user.
-            // Nếu cookie không hợp lệ, action sẽ bị reject.
-            dispatch(fetchUserProfile());
-        }
-    }, [isAuthenticated, authStatus, dispatch]);
+    // Thêm một state local để chỉ kiểm tra token một lần khi app tải
+    const [isVerifying, setIsVerifying] = useState(true);
 
-    // Trong khi đang chờ kết quả từ fetchUserProfile, hiển thị màn hình loading
-    if (authStatus === 'loading' || authStatus === 'idle') {
+    useEffect(() => {
+        // Chỉ chạy logic này MỘT LẦN khi app tải lần đầu
+        // để kiểm tra xem có cookie hợp lệ không.
+        if (!isAuthenticated && authStatus === 'idle') {
+            dispatch(fetchUserProfile())
+                .finally(() => {
+                    // Dù thành công hay thất bại, việc kiểm tra đã xong
+                    setIsVerifying(false);
+                });
+        } else {
+            // Nếu đã có trạng thái xác thực (true hoặc false sau khi fetch), không cần kiểm tra nữa
+            setIsVerifying(false);
+        }
+    }, [authStatus, dispatch, isAuthenticated]);
+
+    // Nếu đang trong quá trình kiểm tra token lần đầu
+    if (isVerifying) {
         return (
-            <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+            <div className="flex h-screen w-full items-center justify-center">
                 <Spinner size="lg" />
             </div>
         );
     }
 
-    // Nếu đã kiểm tra xong và kết quả là không xác thực được, chuyển về trang login
+    // Nếu đã kiểm tra xong và không xác thực được
     if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
+        // Lưu lại trang người dùng muốn vào để có thể chuyển hướng lại sau khi đăng nhập
+        return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    // Nếu đã xác thực thành công, hiển thị các trang con được bảo vệ
+    // Nếu đã xác thực, render trang con
     return <Outlet />;
 };
 
