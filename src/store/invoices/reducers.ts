@@ -3,7 +3,8 @@ import { InvoicesState } from './types';
 import {
     fetchInvoices,
     fetchInvoiceById,
-    confirmInvoicePayment
+    confirmInvoicePayment,
+    generateInvoice
 } from './actions';
 
 const initialState: InvoicesState = {
@@ -41,10 +42,6 @@ const invoicesSlice = createSlice({
                 state.status = 'failed';
                 state.error = action.payload as string;
             })
-
-            // Fetch Invoice By ID (chi tiết) và Confirm Payment
-            // Cả hai action này đều trả về một đối tượng Invoice đã được cập nhật
-            // nên chúng ta có thể dùng chung logic để cập nhật state.
             .addCase(fetchInvoiceById.fulfilled, (state, action) => {
                 state.status = 'succeeded';
                 const index = state.items.findIndex(item => item.id === action.payload.id);
@@ -68,6 +65,18 @@ const invoicesSlice = createSlice({
                 // Ví dụ: state.confirmStatus = 'loading';
             })
             .addCase(confirmInvoicePayment.rejected, (state, action) => {
+                state.error = action.payload as string;
+            })
+            .addCase(generateInvoice.pending, (state) => {
+                state.status = 'loading';
+            })
+            .addCase(generateInvoice.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                // Thêm hóa đơn mới vào danh sách nếu cần
+                state.items.unshift(action.payload);
+            })
+            .addCase(generateInvoice.rejected, (state, action) => {
+                state.status = 'failed';
                 state.error = action.payload as string;
             });
     },

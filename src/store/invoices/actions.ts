@@ -1,7 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import api from '@/api/axiosClient';
 import { ApiResponse, Page } from '@/types/api';
-import { Invoice, FetchInvoicesPayload } from './types';
+import { Invoice, FetchInvoicesPayload, GenerateInvoicePayload } from './types';
 import { AxiosError } from 'axios';
 
 // Fetch invoices with filters and pagination
@@ -50,6 +50,19 @@ export const confirmInvoicePayment = createAsyncThunk<Invoice, number>(
         } catch (err) {
             const error = err as AxiosError<{ message: string }>;
             return rejectWithValue(error.response?.data.message || 'Failed to confirm invoice payment');
+        }
+    }
+);
+
+export const generateInvoice = createAsyncThunk<Invoice, GenerateInvoicePayload>(
+    'invoices/generate',
+    async (payload, { rejectWithValue }) => {
+        try {
+            const response = await api.post<ApiResponse<Invoice>>('/invoices/generate', payload);
+            return response.data.data;
+        } catch (err) {
+            const error = err as AxiosError<{ message: string }>;
+            return rejectWithValue(error.response?.data?.message || 'Tạo hóa đơn thất bại.');
         }
     }
 );

@@ -30,22 +30,34 @@ const InvoiceListPage = () => {
     const buildings = useAppSelector(selectAllBuildings);
     const buildingsStatus = useAppSelector(selectBuildingsStatus);
 
-    // Fetch data on filter or page change
-    useEffect(() => {
-        dispatch(fetchInvoices({
-            page: currentPage,
-            size: 10,
-            buildingId: buildingId ? Number(buildingId) : undefined,
-            status: status,
-        }));
-    }, [dispatch, currentPage, buildingId, status]);
-
-    // Fetch buildings for filter dropdown
+    // Fetch buildings cho filter
     useEffect(() => {
         if (buildingsStatus === 'idle') {
             dispatch(fetchBuildings({ page: 0, size: 100 }));
         }
     }, [dispatch, buildingsStatus]);
+
+    // Tự động chọn tòa nhà đầu tiên
+    useEffect(() => {
+        if (buildingsStatus === 'succeeded' && buildings.length > 0 && !buildingId) {
+            setSearchParams(prev => {
+                prev.set('buildingId', String(buildings[0].id));
+                return prev;
+            }, { replace: true });
+        }
+    }, [buildings, buildingsStatus, buildingId, setSearchParams]);
+
+    // Fetch invoices khi filters thay đổi
+    useEffect(() => {
+        if (buildingId) { // Chỉ fetch khi đã có buildingId
+            dispatch(fetchInvoices({
+                page: currentPage,
+                size: 10,
+                buildingId: Number(buildingId),
+                status: status || undefined,
+            }));
+        }
+    }, [dispatch, currentPage, buildingId, status]);
 
     const handleFilterChange = useCallback((key: string, value: string) => {
         setSearchParams(prev => {

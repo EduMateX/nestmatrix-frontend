@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { useBreadcrumb } from '@/context/BreadcrumbContext';
@@ -6,7 +6,11 @@ import { fetchMeterReadingsByRoom, selectAllMeterReadings, selectMeterReadingsSt
 import { fetchRoomById, selectRoomById } from '@/store/rooms';
 import { Column, DataTable } from '@/components/shared/DataTable';
 import { Button } from '@/components/shared/Button';
-import { ArrowLeft, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, CheckCircle, FilePlus, Image as ImageIcon } from 'lucide-react';
+import { selectAllContracts } from '@/store/contracts';
+import { generateInvoice, selectInvoicesStatus } from '@/store/invoices';
+import { selectAllSettings } from '@/store/settings';
+import { toast } from 'react-toastify';
 
 const MeterReadingHistoryPage = () => {
     const { roomId } = useParams<{ roomId: string }>();
@@ -19,6 +23,12 @@ const MeterReadingHistoryPage = () => {
     const readings = useAppSelector(selectAllMeterReadings);
     const status = useAppSelector(selectMeterReadingsStatus);
     const room = useAppSelector(selectRoomById(numericRoomId));
+    const contracts = useAppSelector(selectAllContracts);
+    const settings = useAppSelector(selectAllSettings);
+    const invoiceStatus = useAppSelector(selectInvoicesStatus);
+
+    const [generatingInvoiceId, setGeneratingInvoiceId] = useState<number | null>(null);
+
 
     useEffect(() => {
         if (numericRoomId) {
@@ -39,6 +49,47 @@ const MeterReadingHistoryPage = () => {
         }
     }, [room, setDynamicSegment]);
 
+    // Hàm xử lý khi click nút "Tạo hóa đơn"
+    const handleGenerateInvoice = useCallback(async (reading: MeterReading) => {
+        setGeneratingInvoiceId(reading.id);
+
+        // Tìm hợp đồng đang active của phòng này
+        const activeContract = contracts.find(c => c.roomId === reading.roomId && c.status === 'ACTIVE');
+        if (!activeContract) {
+            toast.error(`Không tìm thấy hợp đồng đang hoạt động cho phòng ${room?.roomNumber}.`);
+            setGeneratingInvoiceId(null);
+            return;
+        }
+
+        // Lấy đơn giá điện nước từ settings
+        const electricityPrice = Number(settings.find(s => s.key === 'PRICE_ELECTRICITY')?.value || '0');
+        const waterPrice = Number(settings.find(s => s.key === 'PRICE_WATER')?.value || '0');
+        if (electricityPrice === 0 || waterPrice === 0) {
+            toast.error('Vui lòng cấu hình đơn giá điện/nước trong trang Cài đặt.');
+            setGeneratingInvoiceId(null);
+            return;
+        }
+
+        // Dispatch action
+        try {
+            await dispatch(generateInvoice({
+                contractId: activeContract.id,
+                periodMonth: reading.readingMonth,
+                periodYear: reading.readingYear,
+                electricityPrice,
+                waterPrice,
+            })).unwrap();
+
+            toast.success('Tạo hóa đơn thành công!');
+            // Fetch lại danh sách chỉ số để cập nhật trạng thái
+            dispatch(fetchMeterReadingsByRoom(numericRoomId));
+        } catch (error) {
+            toast.error(error as string);
+        } finally {
+            setGeneratingInvoiceId(null);
+        }
+    }, [contracts, settings, dispatch, room?.roomNumber, numericRoomId]);
+
     const columns: Column<MeterReading>[] = [
         {
             header: 'Kỳ Ghi',
@@ -58,7 +109,29 @@ const MeterReadingHistoryPage = () => {
                     {reading.waterImageUrl && <a href={reading.waterImageUrl} target="_blank" rel="noopener noreferrer" title="Xem ảnh nước"><ImageIcon className="h-5 w-5 text-gray-500 hover:text-green-600" /></a>}
                 </div>
             )
-        }
+        },
+        {
+            header: 'Trạng thái Hóa đơn',
+            accessor: 'invoiceGenerated',
+            render: (reading) => (
+                reading.invoiceGenerated ? (
+                    <span className="flex items-center text-sm text-green-600 font-semibold">
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Đã tạo hóa đơn
+                    </span>
+                ) : (
+                    <Button
+                        size="sm"
+                        onClick={() => handleGenerateInvoice(reading)}
+                        isLoading={generatingInvoiceId === reading.id}
+                        disabled={generatingInvoiceId !== null}
+                    >
+                        <FilePlus className="h-4 w-4 mr-1" />
+                        Tạo Hóa đơn
+                    </Button>
+                )
+            )
+        },
     ];
 
     return (
@@ -68,8 +141,10 @@ const MeterReadingHistoryPage = () => {
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Lịch sử ghi điện nước - Phòng {room?.roomNumber || '...'}</h1>
-                    <p className="text-muted-foreground">Tra cứu các lần ghi chỉ số đã được lưu.</p>
+                    <h1 className="text-2xl font-bold tracking-tight">
+                        Lịch sử ghi điện nước - Phòng {room?.roomNumber || '...'}
+                    </h1>
+                    <p className="text-muted-foreground">Tra cứu và quản lý hóa đơn cho từng kỳ ghi chỉ số.</p>
                 </div>
             </div>
 

@@ -12,6 +12,7 @@ export interface MeterReading {
     readingDate: string; // 'YYYY-MM-DD'
     electricImageUrl?: string;
     waterImageUrl?: string;
+    invoiceGenerated?: boolean;
 }
 
 export interface MeterReadingsState {

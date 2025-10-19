@@ -63,3 +63,11 @@ export interface FetchInvoicesPayload {
     status?: InvoiceStatus;
     // Thêm các filter khác nếu cần
 }
+
+export interface GenerateInvoicePayload {
+    contractId: number;
+    periodMonth: number;
+    periodYear: number;
+    electricityPrice: number;
+    waterPrice: number;
+}
