@@ -1,7 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-
-// Redux
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
     fetchRooms,
@@ -14,16 +12,12 @@ import {
     RoomStatus
 } from '@/store/rooms';
 import { fetchBuildings, selectAllBuildings, selectBuildingsStatus } from '@/store/buildings';
-
-// Shared Components
 import { Column, DataTable } from '@/components/shared/DataTable';
 import { Button } from '@/components/shared/Button';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Select, SelectOption } from '@/components/shared/Select';
 import { SearchInput } from '@/components/shared/SearchInput';
 import { Card, CardContent } from '@/components/shared/Card';
-
-// Utils & Icons
 import toast from '@/lib/toast';
 import { Pencil, PlusCircle, Trash2 } from 'lucide-react';
 
@@ -32,30 +26,35 @@ const RoomListPage = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // State nội bộ cho modal
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
-    // Đọc state từ URL params
     const currentPage = Number(searchParams.get('page')) || 0;
-    const buildingId = searchParams.get('buildingId') || '';
+    const buildingId = searchParams.get('buildingId');
     const keyword = searchParams.get('keyword') || '';
+    const statusFilter = (searchParams.get('status') as RoomStatus) || '';
 
-    // Redux State
     const rooms = useAppSelector(selectAllRooms);
     const roomsStatus = useAppSelector(selectRoomsStatus);
     const pagination = useAppSelector(selectRoomsPagination);
     const buildings = useAppSelector(selectAllBuildings);
     const buildingsStatus = useAppSelector(selectBuildingsStatus);
 
-    // Fetch buildings cho dropdown
     useEffect(() => {
         if (buildingsStatus === 'idle') {
             dispatch(fetchBuildings({ page: 0, size: 100 }));
         }
-    }, [buildingsStatus, dispatch]);
+    }, [dispatch, buildingsStatus]);
 
-    // Fetch rooms khi các tham số URL thay đổi
+    useEffect(() => {
+        if (buildingsStatus === 'succeeded' && buildings.length > 0 && !buildingId) {
+            setSearchParams(prev => {
+                prev.set('buildingId', String(buildings[0].id));
+                return prev;
+            }, { replace: true });
+        }
+    }, [buildings, buildingsStatus, buildingId, setSearchParams]);
+
     useEffect(() => {
         if (buildingId) {
             dispatch(fetchRooms({
@@ -63,38 +62,39 @@ const RoomListPage = () => {
                 size: 10,
                 buildingId: Number(buildingId),
                 keyword: keyword,
-                // Không còn filter và sort
+                status: statusFilter || undefined,
             }));
         } else {
             dispatch(clearRooms());
         }
-    }, [dispatch, currentPage, keyword, buildingId]);
+    }, [dispatch, currentPage, keyword, buildingId, statusFilter]);
 
-    // --- Handlers ---
-    const handlePageChange = useCallback((newPage: number) => {
+    const handleUrlChange = useCallback((params: Record<string, string>) => {
         setSearchParams(prev => {
-            prev.set('page', String(newPage));
-            return prev;
+            const newParams = new URLSearchParams(prev);
+            Object.entries(params).forEach(([key, value]) => {
+                value ? newParams.set(key, value) : newParams.delete(key);
+            });
+            if (Object.keys(params).some(k => ['keyword', 'status', 'buildingId'].includes(k))) {
+                newParams.set('page', '0');
+            }
+            return newParams;
         }, { replace: true });
-    }, [setSearchParams]);
-
-    const handleBuildingChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newBuildingId = e.target.value;
-        // Khi đổi tòa nhà, reset page và keyword
-        setSearchParams({ buildingId: newBuildingId, page: '0', keyword: '' });
     }, [setSearchParams]);
 
     const handleSearch = useCallback((newKeyword: string) => {
         setSearchParams(prev => {
-            prev.set('page', '0'); // Reset page khi tìm kiếm
+            const newParams = new URLSearchParams(prev);
+            newParams.set('page', '0');
             if (newKeyword) {
-                prev.set('keyword', newKeyword);
+                newParams.set('keyword', newKeyword);
             } else {
-                prev.delete('keyword');
+                newParams.delete('keyword');
             }
-            return prev;
-        }, { replace: true });
+            return newParams;
+        });
     }, [setSearchParams]);
+
 
     const handleOpenDeleteModal = (room: Room) => {
         setSelectedRoom(room);
@@ -140,9 +140,10 @@ const RoomListPage = () => {
                 </div>
             )
         },
-    ], [navigate, buildingNameMap, handleOpenDeleteModal]);
+    ], [navigate, buildingNameMap]);
 
     const buildingOptions: SelectOption[] = useMemo(() => buildings.map(b => ({ value: b.id, label: b.name })), [buildings]);
+    const statusOptions: SelectOption[] = useMemo(() => Object.values(RoomStatus).map(s => ({ value: s, label: s })), []);
 
     return (
         <div className="space-y-6">
@@ -157,18 +158,28 @@ const RoomListPage = () => {
             </div>
 
             <Card>
-                <CardContent className="pt-6 flex flex-col md:flex-row gap-4 items-end">
-                    <div className="w-full md:w-1/3">
+                <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
                         <label className="font-medium mb-2 block">Tòa nhà</label>
                         <Select
                             options={buildingOptions}
                             placeholder="-- Chọn tòa nhà --"
                             value={buildingId || ""}
-                            onChange={handleBuildingChange}
+                            onChange={e => handleUrlChange({ buildingId: e.target.value })}
                             disabled={buildingsStatus === 'loading'}
                         />
                     </div>
-                    <div className="w-full md:w-1/3">
+                    <div>
+                        <label className="font-medium mb-2 block">Trạng thái</label>
+                        <Select
+                            options={statusOptions}
+                            placeholder="Tất cả trạng thái"
+                            value={statusFilter || ""}
+                            onChange={e => handleUrlChange({ status: e.target.value })}
+                            disabled={!buildingId}
+                        />
+                    </div>
+                    <div>
                         <label className="font-medium mb-2 block">Tìm theo số phòng</label>
                         <SearchInput
                             initialValue={keyword}
@@ -186,12 +197,11 @@ const RoomListPage = () => {
                     data={rooms}
                     isLoading={roomsStatus === 'loading'}
                     pagination={{
-                        currentPage: pagination.currentPage,
+                        currentPage: currentPage,
                         totalPages: pagination.totalPages,
                         totalElements: pagination.totalElements,
-                        onPageChange: handlePageChange,
+                        onPageChange: (page) => handleUrlChange({ page: String(page) }),
                     }}
-                // Không còn props sort và onSort
                 />
             )}
 

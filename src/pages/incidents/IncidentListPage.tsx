@@ -1,8 +1,8 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 
 // Redux imports
-import { fetchIncidentsByBuilding, deleteIncident, selectAllIncidents, selectIncidentsStatus, Incident, IncidentPriority, IncidentStatus } from '@/store/incidents';
+import { fetchIncidentsByBuilding, deleteIncident, selectAllIncidents, selectIncidentsStatus, Incident, IncidentPriority, IncidentStatus, clearIncidents } from '@/store/incidents';
 import { fetchBuildings, selectAllBuildings, selectBuildingsStatus } from '@/store/buildings';
 
 // Component imports
@@ -30,19 +30,34 @@ const IncidentListPage = () => {
     const buildings = useAppSelector(selectAllBuildings);
     const buildingsStatus = useAppSelector(selectBuildingsStatus);
 
-    // Fetch initial data for filters
+    // Fetch danh sách tòa nhà (chỉ một lần)
     useEffect(() => {
         if (buildingsStatus === 'idle') {
-            dispatch(fetchBuildings());
+            dispatch(fetchBuildings({ page: 0, size: 100 }));
         }
     }, [buildingsStatus, dispatch]);
 
-    // Fetch incidents when a building is selected
+
+    // Tự động chọn tòa nhà đầu tiên
+    useEffect(() => {
+        if (buildingsStatus === 'succeeded' && buildings.length > 0 && selectedBuildingId === null) {
+            setSelectedBuildingId(buildings[0].id);
+        }
+    }, [buildings, buildingsStatus, selectedBuildingId]);
+
+    // Fetch danh sách sự cố khi `selectedBuildingId` thay đổi
     useEffect(() => {
         if (selectedBuildingId) {
             dispatch(fetchIncidentsByBuilding(selectedBuildingId));
+        } else {
+            // Dọn dẹp state nếu không có tòa nhà nào được chọn
+            dispatch(clearIncidents());
         }
     }, [selectedBuildingId, dispatch]);
+
+    const handleBuildingChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedBuildingId(Number(e.target.value) || null);
+    }, []);
 
     // Modal handlers
     const handleOpenDeleteModal = (incident: Incident) => {
@@ -129,8 +144,9 @@ const IncidentListPage = () => {
                         <Select
                             options={buildingOptions}
                             placeholder="-- Chọn tòa nhà để xem sự cố --"
-                            onChange={(e) => setSelectedBuildingId(Number(e.target.value) || null)}
-                            disabled={buildingsStatus === 'loading'}
+                            value={selectedBuildingId || ""}
+                            onChange={handleBuildingChange}
+                            disabled={buildingsStatus === 'loading' || buildings.length === 0}
                         />
                     </div>
                 </CardContent>

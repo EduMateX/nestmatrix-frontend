@@ -12,6 +12,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
     'rooms': 'Quản lý Phòng',
     'tenants': 'Quản lý Khách thuê',
     'contracts': 'Quản lý Hợp đồng',
+    'requests': 'Yêu cầu từ người dùng',
     'incidents': 'Quản lý Sự cố',
     'meter-readings': 'Ghi chỉ số Điện Nước',
     'invoices': 'Quản lý Hóa đơn',

@@ -1,7 +1,7 @@
 import { createSelector } from '@reduxjs/toolkit';
 import { RootState } from '@/store';
 
-// Lấy toàn bộ danh sách hợp đồng
+// Lấy toàn bộ danh sách hợp đồng trong state hiện tại
 export const selectAllContracts = (state: RootState) => state.contracts.items;
 
 // Lấy trạng thái loading/succeeded/failed của module
@@ -14,13 +14,11 @@ export const selectContractsError = (state: RootState) => state.contracts.error;
 export const selectContractById = (id: number) => (state: RootState) =>
     state.contracts.items.find((contract) => contract.id === id);
 
-const selectContractsCurrentPage = (state: RootState) => state.contracts.currentPage;
-const selectContractsTotalPages = (state: RootState) => state.contracts.totalPages;
-const selectContractsTotalElements = (state: RootState) => state.contracts.totalElements;
-
-// Memoized selector
+// Selector đã được memoize để lấy thông tin phân trang
 export const selectContractsPagination = createSelector(
-    [selectContractsCurrentPage, selectContractsTotalPages, selectContractsTotalElements],
+    (state: RootState) => state.contracts.currentPage,
+    (state: RootState) => state.contracts.totalPages,
+    (state: RootState) => state.contracts.totalElements,
     (currentPage, totalPages, totalElements) => ({
         currentPage,
         totalPages,

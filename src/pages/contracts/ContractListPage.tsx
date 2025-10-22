@@ -5,8 +5,9 @@ import { fetchContracts, terminateContract, selectAllContracts, selectContractsS
 import { Column, DataTable } from '@/components/shared/DataTable';
 import { Button } from '@/components/shared/Button';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
-import { FilePlus } from 'lucide-react';
+import { FilePlus, MessageSquareQuote } from 'lucide-react';
 import toast from '@/lib/toast';
+import { fetchPendingRequests, selectAllUserRequests } from '@/store/userRequests';
 
 const ContractListPage = () => {
     const dispatch = useAppDispatch();
@@ -20,6 +21,7 @@ const ContractListPage = () => {
     const contracts = useAppSelector(selectAllContracts);
     const status = useAppSelector(selectContractsStatus);
     const pagination = useAppSelector(selectContractsPagination);
+    const pendingRequests = useAppSelector(selectAllUserRequests);
 
     const currentPage = Number(searchParams.get('page')) || 0;
 
@@ -27,6 +29,12 @@ const ContractListPage = () => {
         // Luôn fetch khi page thay đổi hoặc status là 'idle'
         dispatch(fetchContracts({ page: currentPage, size: 10 }));
     }, [currentPage, dispatch]);
+
+    // Fetch pending requests để hiển thị số lượng trên badge
+    useEffect(() => {
+        dispatch(fetchPendingRequests());
+    }, [dispatch]);
+
 
     const handlePageChange = useCallback((newPage: number) => {
         setSearchParams({ page: String(newPage) });
@@ -91,9 +99,29 @@ const ContractListPage = () => {
                     <h1 className="text-2xl font-bold tracking-tight">Quản lý Hợp đồng</h1>
                     <p className="text-muted-foreground">Tổng số {pagination.totalElements} hợp đồng.</p>
                 </div>
-                <Link to="/contracts/add">
-                    <Button><FilePlus className="mr-2 h-4 w-4" /> Tạo hợp đồng</Button>
-                </Link>
+                <div className="flex items-center gap-2">
+                    {/* Nút điều hướng đến trang Yêu cầu */}
+                    <Link to="/contracts/requests">
+                        <Button variant="secondary" className="relative">
+                            <MessageSquareQuote className="mr-2 h-4 w-4" />
+                            Xem Yêu cầu
+                            {/* (Tùy chọn) Hiển thị badge nếu có yêu cầu mới */}
+                            {pendingRequests.length > 0 && (
+                                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                                    {pendingRequests.length}
+                                </span>
+                            )}
+                        </Button>
+                    </Link>
+
+                    {/* Nút Tạo hợp đồng */}
+                    <Link to="/contracts/add">
+                        <Button>
+                            <FilePlus className="mr-2 h-4 w-4" />
+                            Tạo hợp đồng
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             <DataTable

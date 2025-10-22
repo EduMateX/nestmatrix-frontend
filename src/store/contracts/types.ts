@@ -1,7 +1,10 @@
 export enum ContractStatus {
+    DRAFT = "DRAFT",
+    WAITING_SIGNATURES = "WAITING_SIGNATURES",
     ACTIVE = "ACTIVE",
     EXPIRED = "EXPIRED",
-    TERMINATED = "TERMINATED"
+    TERMINATED = "TERMINATED",
+    PENDING_TERMINATION = "PENDING_TERMINATION"
 }
 
 export interface Contract {
@@ -17,6 +20,8 @@ export interface Contract {
     paymentCycle: number;
     status: ContractStatus;
     contractFileUrl?: string;
+    tenantSignatureUrl?: string; // Thêm trường chữ ký
+    tenantSignedAt?: string;
 }
 
 export interface ContractsState {
@@ -43,4 +48,22 @@ export interface ContractFormData {
     rentAmount: number;
     depositAmount: number;
     paymentCycle: number;
+}
+
+// DTO chứa dữ liệu được parse từ file hợp đồng
+export interface ParsedContractData {
+    tenantName: string | null;
+    roomNumber: string | null;
+    startDate: string | null; // 'YYYY-MM-DD'
+    endDate: string | null;
+    rentAmount: number | null;
+    depositAmount: number | null;
+    paymentCycle: number | null;
+}
+
+// Payload cho action upload file (bao gồm cả tùy chọn overwrite)
+export interface UploadContractFilePayload {
+    id: number;
+    file: File;
+    overwriteData: boolean;
 }

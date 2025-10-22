@@ -10,6 +10,7 @@ import { dashboardReducer } from './dashboard';
 import { invoicesReducer } from './invoices';
 import { settingsReducer } from './settings';
 import { notificationsReducer } from './notifications';
+import { userRequestsReducer } from '@/store/userRequests';
 
 // Kết hợp tất cả reducer từ các module
 const rootReducer = combineReducers({
@@ -24,6 +25,7 @@ const rootReducer = combineReducers({
   invoices: invoicesReducer,
   settings: settingsReducer,
   notifications: notificationsReducer,
+  userRequests: userRequestsReducer,
 });
 
 // Cấu hình store

@@ -1,13 +1,18 @@
-// src/store/contracts/reducers.ts
-import { createSlice } from '@reduxjs/toolkit';
-import { ContractsState } from './types';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { ContractsState, Contract } from './types';
 import {
     fetchContracts,
-    createContract,
-    terminateContract,
     fetchContractById,
-    uploadContractFile
+    createContract,
+    uploadContractFile,
+    terminateContract,
+    sendForSigning,
+    approveSignature,
+    requestTermination,
+    signDigitally,
+    confirmTermination
 } from './actions';
+import { logoutAction } from '../auth';
 
 const initialState: ContractsState = {
     items: [],
@@ -18,11 +23,31 @@ const initialState: ContractsState = {
     error: null,
 };
 
+const updateOrAddContractInState = (state: ContractsState, action: PayloadAction<Contract>) => {
+    const updatedContract = action.payload;
+    const index = state.items.findIndex(item => item.id === updatedContract.id);
+    if (index !== -1) {
+        state.items[index] = updatedContract;
+    } else {
+        state.items.unshift(updatedContract);
+    }
+    state.status = 'succeeded';
+};
+
+const setLoadingState = (state: ContractsState) => {
+    state.status = 'loading';
+    state.error = null;
+}
+
+const setFailedState = (state: ContractsState, action: any) => {
+    state.status = 'failed';
+    state.error = action.payload as string;
+}
+
 const contractsSlice = createSlice({
     name: 'contracts',
     initialState,
     reducers: {
-        // Action để reset status, có thể dùng khi rời khỏi trang
         resetStatus: (state) => {
             state.status = 'idle';
             state.error = null;
@@ -30,8 +55,8 @@ const contractsSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            // Fetch All Contracts
-            .addCase(fetchContracts.pending, (state) => { state.status = 'loading'; })
+            // --- TẤT CẢ .addCase PHẢI ĐƯỢC ĐẶT Ở ĐÂY ---
+            .addCase(fetchContracts.pending, setLoadingState)
             .addCase(fetchContracts.fulfilled, (state, action) => {
                 state.status = 'succeeded';
                 state.items = action.payload.content;
@@ -39,47 +64,49 @@ const contractsSlice = createSlice({
                 state.totalPages = action.payload.totalPages;
                 state.totalElements = action.payload.totalElements;
             })
-            .addCase(fetchContracts.rejected, (state, action) => {
-                state.status = 'failed';
-                state.error = action.payload as string;
-            })
+            .addCase(fetchContracts.rejected, setFailedState)
 
-            // Create Contract
-            .addCase(createContract.pending, (state) => { state.status = 'loading'; })
-            .addCase(createContract.fulfilled, (state, action) => {
-                state.status = 'succeeded';
-                state.items.push(action.payload);
-            })
-            .addCase(createContract.rejected, (state, action) => {
-                state.status = 'failed';
-                state.error = action.payload as string;
-            })
+            .addCase(createContract.fulfilled, (state) => { state.status = 'idle'; })
+            .addCase(createContract.pending, setLoadingState)
+            .addCase(createContract.rejected, setFailedState)
 
-            .addCase(terminateContract.fulfilled, (state) => {
-                state.status = 'idle'; // Trigger refetch
-            })
-            .addCase(fetchContractById.pending, (state) => { state.status = 'loading'; })
-            .addCase(fetchContractById.rejected, (state, action) => {
-                state.status = 'failed';
-                state.error = action.payload as string;
-            })
-            .addCase(fetchContractById.fulfilled, (state, action) => {
-                state.status = 'succeeded';
-                // Cập nhật hoặc thêm hợp đồng vào danh sách
-                const index = state.items.findIndex(item => item.id === action.payload.id);
-                if (index !== -1) {
-                    state.items[index] = action.payload;
-                } else {
-                    state.items.push(action.payload);
-                }
-            })
-            .addCase(uploadContractFile.fulfilled, (state, action) => {
-                // Tương tự, cập nhật lại hợp đồng trong danh sách
-                const index = state.items.findIndex(item => item.id === action.payload.id);
-                if (index !== -1) {
-                    state.items[index] = action.payload;
-                }
-            });
+            .addCase(fetchContractById.fulfilled, updateOrAddContractInState)
+            .addCase(uploadContractFile.fulfilled, updateOrAddContractInState)
+            .addCase(terminateContract.fulfilled, updateOrAddContractInState)
+            .addCase(sendForSigning.fulfilled, updateOrAddContractInState)
+            .addCase(approveSignature.fulfilled, updateOrAddContractInState)
+            .addCase(requestTermination.fulfilled, updateOrAddContractInState)
+            .addCase(signDigitally.fulfilled, updateOrAddContractInState)
+            .addCase(confirmTermination.fulfilled, updateOrAddContractInState)
+
+            .addCase(logoutAction.fulfilled, () => initialState)
+
+            .addMatcher(
+                (action) => [
+                    fetchContractById.pending,
+                    uploadContractFile.pending,
+                    terminateContract.pending,
+                    sendForSigning.pending,
+                    approveSignature.pending,
+                    requestTermination.pending,
+                    signDigitally.pending,
+                    confirmTermination.pending,
+                ].includes(action.type),
+                setLoadingState
+            )
+            .addMatcher(
+                (action) => [
+                    fetchContractById.rejected,
+                    uploadContractFile.rejected,
+                    terminateContract.rejected,
+                    sendForSigning.rejected,
+                    approveSignature.rejected,
+                    requestTermination.rejected,
+                    signDigitally.rejected,
+                    confirmTermination.rejected,
+                ].includes(action.type),
+                setFailedState
+            );
     },
 });
 

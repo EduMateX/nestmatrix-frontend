@@ -35,6 +35,7 @@ import IncidentListPage from "@/pages/incidents/IncidentListPage";
 import InvoiceListPage from "@/pages/invoices/InvoiceListPage";
 import InvoiceDetailPage from "@/pages/invoices/InvoiceDetailPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
+import UserRequestListPage from "@/pages/requests/UserRequestListPage";
 
 
 function App() {
@@ -69,6 +70,7 @@ function App() {
                 <Route path="/contracts" element={<ContractListPage />} />
                 <Route path="/contracts/add" element={<ContractFormPage />} />
                 <Route path="/contracts/:id" element={<ContractDetailPage />} />
+                <Route path="/contracts/requests" element={<UserRequestListPage />} />
                 <Route path="/meter-readings" element={<MeterReadingPage />} />
                 <Route path="/meter-readings/history/:roomId" element={<MeterReadingHistoryPage />} />
                 <Route path="/incidents" element={<IncidentListPage />} />

@@ -20,7 +20,12 @@ const incidentsSlice = createSlice({
         resetStatus: (state) => {
             state.status = 'idle';
             state.error = null;
-        }
+        },
+        clearIncidents: (state) => {
+            state.items = [];
+            state.status = 'idle';
+            state.error = null;
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -63,5 +68,5 @@ const incidentsSlice = createSlice({
     },
 });
 
-export const { resetStatus } = incidentsSlice.actions;
+export const { resetStatus, clearIncidents } = incidentsSlice.actions;
 export default incidentsSlice.reducer;
